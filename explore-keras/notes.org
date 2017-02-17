@@ -1,0 +1,34 @@
+* step 1
++ CONTRIBUTING.md :: 
+  Guidelines for bug reports / feature requests / pull requests
++ docs/ :: 
+  source for documentdation (as seen on http://keras.io/?)
++ examples/ ::
+  collection of .py containing examples of various models and datasets
++ ISSUE_TEMPLATE.md :: 
+  checklist for bug reports
++ keras/ :: 
+  Python sources
++ LICENSE :: 
+  Text of the MIT license
++ pytest.ini :: 
+  Configuration of py.test
++ README.md ::
+  Readme
++ setup.cfg ::
+  config file for setup.py?
++ setup.py ::
+  "build system"
++ tests/ :: 
+  unit and integration tests
+* build 
+virtualenv venv
+. ./venv/bin/activate
+pip2 install numpy h5py
+cd keras
+python setup.py install
+
+* test
+pip install pytest pytest-cov python-coveralls pytest-xdist pep8 pytest-pep8
+py.test tests/
+

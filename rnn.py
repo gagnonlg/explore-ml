@@ -3,7 +3,13 @@ import matplotlib.pyplot as plt
 import theano
 import theano.tensor as T
 
+np.random.seed(17430)
+
+
 theano.config.floatX = 'float32'
+
+#theano.config.optimizer='fast_compile'
+#theano.config.exception_verbosity='high'
 
 # generate data
 def gen_sample():
@@ -32,12 +38,14 @@ def make_dataset(N):
 
     dsetX = np.zeros((N, 5, 2))
     dsetY = np.zeros((N, 1))
+    dsetM = np.zeros((N, 5))
     for i in range(N):
         smp, cls = gen_sample()
         dsetX[i,:smp.shape[0]] = smp
         dsetY[i,0] = cls
+        dsetM[i,:smp.shape[0]] = 1
 
-    return dsetX.astype('float32'), dsetY.astype('float32')
+    return dsetX.astype('float32'), dsetY.astype('float32'), dsetM.astype('float32')
 
 def rnn_step(x, h, U, b, W):
     return T.tanh(b + T.dot(U, x) + T.dot(W, h))
@@ -95,7 +103,8 @@ preds, pupds = theano.scan(
 )
 
 y = T.vector('y')
-loss = T.sum(T.nnet.binary_crossentropy(preds, y))
+mask = T.vector('mask')
+loss = T.sum(mask.dimshuffle(0,'x') * T.nnet.binary_crossentropy(preds, y))
 
 
 params = [U,W,b,V,c]
@@ -107,7 +116,7 @@ gupdates = [
 ]
 
 rnnfunc = theano.function(
-    inputs=[x, y],
+    inputs=[x, y, mask],
     outputs=[results, preds, loss],
     updates=gupdates
 )
@@ -117,13 +126,14 @@ rnntest = theano.function(
     outputs=preds[-1]
 )
 
-trainX, trainY = make_dataset(1000)
-testX, testY = make_dataset(1000)
+trainX, trainY, trainM = make_dataset(1000)
+testX, testY, _ = make_dataset(1000)
 
 for epoch in range(10):
     losses = []
     for i in range(1000):
-        losses.append(rnnfunc(trainX[i], trainY[i])[-1])
+        states, preds, ls = rnnfunc(trainX[i], trainY[i], trainM[i])
+        losses.append(ls)
     good = float(0.0)
     for i in range(1000):
         pred = rnntest(testX[i])

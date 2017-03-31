@@ -36,7 +36,7 @@ def AdaGrad(theta, epsilon, delta):
              for xi, yi in minibatch()]
         )
         r += g ** 2 # element-wise
-        theta -= epsilon * g / (delta + sqrt(r)) # element-wise        r2 = rho2 * r2 + (1 - rho2) * (g ** 2) # element-wise
+        theta -= epsilon * g / (delta + sqrt(r)) # element-wise
 
 def RMSProp(theta, epsilon, rho, delta):
     r = zeros()

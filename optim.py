@@ -75,3 +75,33 @@ def Adam(theta, epsilon=0.001, rho1=0.9, rho2=0.999, delta=10e-8):
         r2 = rho2 * r2 + (1 - rho2) * (g ** 2) # element-wise
         t2 /= (1 - rho2**t)
         theta -= epsilon * r1 / (delta + sqrt(r2)) # element-wise
+
+def Newton(theta, epsilon):
+    while not stopped():
+        g = sum(
+            [grad(loss(f(xi, theta), yi), theta)
+             for xi, yi in minibatch()]
+        )
+        H = sum(
+            [grad2(loss(f(xi, theta), yi), theta)
+             for xi, yi in minibatch()]
+        )
+        theta -= epsilon * (invert(H) * g)
+
+def ConjugateGradient(theta):
+    rho = 0
+    g = 0
+    t = 1
+    while not stopped():
+        g = sum(
+            [grad(loss(f(xi, theta), yi), theta)
+             for xi, yi in minibatch()]
+        )
+        if reset_beta(t):
+            beta = 0
+        else:
+            beta = ... # fletcher-reeves or polak-ribière
+        rho = - g + beta rho
+        epsilon = ... # line search for optimal epsilon
+        theta += epsilo * rho
+        t += 1

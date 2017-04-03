@@ -47,83 +47,98 @@ def make_dataset(N):
 
     return dsetX.astype('float32'), dsetY.astype('float32'), dsetM.astype('float32')
 
-def rnn_step(x, h, U, b, W):
-    return T.tanh(b + T.dot(U, x) + T.dot(W, h))
-
-
-# x: n_features
+# let's define some tensors 
 n_features = 2
-x = T.matrix('x')
-# h: n_state
 n_state = 5
-#h = theano.shared(np.random.uniform(size=n_state).astype('float32'))
-# U*x -> U: n_state, n_features
+n_out = 1
+batch_size = 10
+
+X = T.tensor3('X') # (batch_size, n_step, n_features)
+
 U = theano.shared(
     np.random.uniform(
         size=(n_state, n_features),
-    ).astype('float32')
+    ).T.astype('float32')
 )
-# W*h -> W: n_state, n_state
+
 W = theano.shared(
     np.random.uniform(
         size=(n_state, n_state),
-    ).astype('float32')
+    ).T.astype('float32')
 )
-
-# b: n_state
 b = theano.shared(
     np.zeros(n_state).astype('float32')
 )
-
 initial_state = theano.shared(
-    np.zeros(n_state).astype('float32')
+    np.zeros((batch_size,n_state)).astype('float32')
 )
+
+V = theano.shared(
+    np.random.uniform(
+        size=(n_out, n_state),
+    ).T.astype('float32')
+)
+
+c = theano.shared(
+    np.zeros(n_out).astype('float32')
+)
+
+
+def rnn_step(X, H, U, b, W):
+    """ One RNN step for all examples in a batch in parallel
+
+    X: shape (batch_size, n_features) -> features at same time step for all examples in batch
+    H: shape (batch_size, n_state) -> state at previous time step for all examples in batch
+    U, b, W: RNN parameters
+    
+    returns: (batch_size, n_state) -> new state value at time step for all examples in batch
+    """
+    return T.tanh(b + T.dot(X, U) + T.dot(H, W))
 
 results, updates = theano.scan(
     fn=rnn_step,
     outputs_info=T.zeros_like(initial_state),
-    sequences=x,
+    sequences=X.dimshuffle(1, 0, 2),
     non_sequences=[U,b,W]
 )
+# results: (n_step, batch_size, n_state)
 
-def pred_step(h, V, c):
-    return T.nnet.sigmoid(c + T.dot(V, h))
-
-# Vh + c = y
-# V: n_out x n_state
-# c: n_out
-n_out = 1
-V = theano.shared(np.random.uniform(size=(n_out,n_state)).astype('float32'))
-c = theano.shared(np.zeros((n_out,)).astype('float32'))
+def pred_step(H, V, c):
+    return T.nnet.sigmoid(c + T.dot(H, V))
 
 preds, pupds = theano.scan(
     fn=pred_step,
     outputs_info=None,
     sequences=results,
-    non_sequences=[V, c]
+    non_sequences=[V,c]
 )
+# preds: (n_step, batch_size, n_out)
 
-y = T.vector('y')
-mask = T.vector('mask')
-loss = T.sum(mask.dimshuffle(0,'x') * T.nnet.binary_crossentropy(preds, y))
+# ## SGD machinery
+Y = T.matrix('Y')
+mask = T.matrix('M')
 
-
-params = [U,W,b,V,c]
+loss = T.mean(
+    T.sum(
+        mask.dimshuffle(1, 0, 'x') * T.nnet.binary_crossentropy(preds, Y.dimshuffle('x', 0, 1)),
+        axis=0
+    ),
+)
+params = [U, W, b, V, c]
 gparams = [T.grad(loss, p) for p in params]
-
-gupdates = [
+updates = [
     (param, param - 0.001 * gparam)
     for param, gparam in zip(params, gparams)
 ]
 
 rnnfunc = theano.function(
-    inputs=[x, y, mask],
+    inputs=[X, Y, mask],
     outputs=[results, preds, loss],
-    updates=gupdates
+    updates=updates
 )
 
 rnntest = theano.function(
-    inputs=[x],
+    inputs=[X],
     outputs=preds[-1]
 )
 
@@ -131,22 +146,23 @@ trainX, trainY, trainM = make_dataset(1000)
 testX, testY, _ = make_dataset(1000)
 
 if __name__ == '__main__':
-    for epoch in range(10):
+    for epoch in range(100):
         losses = []
-        for i in range(1000):
-            states, preds, ls = rnnfunc(trainX[i], trainY[i], trainM[i])
+        for i in range(0, 1000, batch_size):
+            states, preds, ls = rnnfunc(
+                trainX[i:i+batch_size],
+                trainY[i:i+batch_size],
+                trainM[i:i+batch_size]
+            )
             losses.append(ls)
         good = float(0.0)
-        for i in range(1000):
-            pred = rnntest(testX[i])
+        for i in range(0, 1000, batch_size):
+            pred = rnntest(testX[i:i+batch_size])
             pcls = (pred > 0.5).astype('float32')
-            if pcls[0] == testY[i][0]:
-                good += 1.0
+            good += np.count_nonzero(pcls == testY[i:i+batch_size])
 
         print 'epoch {}: loss: {} acc:{}'.format(
             epoch,
             np.mean(losses),
             (good/1000)
         )
-
-

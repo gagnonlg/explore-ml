@@ -70,6 +70,13 @@ class MixtureDensity(keras.layers.Dense):
 
 def mixture_density_loss(nb_components, target_dimension=1):
 
+    """ Compute the mixture density loss:
+        \begin{eqnarray}
+          P(Y|X) = \sum_i P(C_i) N(Y|mu_i(X), beta_i(X)) \\
+          Loss(Y|X) = - log(P(Y|X))
+        \end{eqnarray}
+    """
+
     def loss(y_true, y_pred):
 
         batch_size = K.shape(y_pred)[0]

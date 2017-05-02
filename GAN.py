@@ -144,7 +144,7 @@ for epoch in range(training_iterations):
 
 
     if epoch % 100 == 0:
-    
+
         print 'epoch {}: d_loss={}, g_loss={}'.format(
             epoch,
             np.mean(d_losses),
@@ -155,7 +155,7 @@ for epoch in range(training_iterations):
             epoch,
             g_sample[0]
         )
-    
+
 ###### Tests
 print '-> Evaluating results'
 
@@ -166,4 +166,3 @@ xgen = g_sample_func(sample_z_prior(100))[0]
 plt.scatter(xgen[:,0], xgen[:,1], color='r')
 
 plt.show()
-

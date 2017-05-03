@@ -5,6 +5,24 @@ import keras
 import keras.backend as K
 
 
+def mixture_density(nb_components, target_dimension=1):
+
+    """ The Mixture Density output layer. Use with the keras functional api:
+
+        inputs = Inputs(...)
+        net = ....
+        model = Model(input=[inputs], output=[mixture_density(2)(net)])
+    """
+
+    def layer(X):
+        pi = keras.layers.Dense(2, activation='softmax')(X)
+        mu = keras.layers.Dense(2, activation='linear')(X)
+        prec = keras.layers.Dense(2, activation=K.abs)(X)
+        return keras.layers.Merge(mode='concat')([pi,mu,prec])
+
+    return layer
+
+
 def mixture_density_loss(nb_components, target_dimension=1):
 
     """ Compute the mixture density loss:
@@ -93,17 +111,6 @@ def gen_data(N):
 
     return x[ishuffle], y[ishuffle]
 
-
-
-def mixture_density(nb_components, target_dimension=1):
-
-    def layer(X):
-        pi = keras.layers.Dense(2, activation='softmax')(X)
-        mu = keras.layers.Dense(2, activation='linear')(X)
-        prec = keras.layers.Dense(2, activation=K.abs)(X)
-        return keras.layers.Merge(mode='concat')([pi,mu,prec])
-
-    return layer
 
 def main():
 

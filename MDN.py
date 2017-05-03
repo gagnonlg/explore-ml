@@ -4,69 +4,6 @@ np.random.seed(12122)
 import keras
 import keras.backend as K
 
-class MixtureDensity(keras.layers.Dense):
-
-    """ The Mixture Density output layer is implemented as a type of Dense
-        layer in which the output vector is actually a concatenation
-        of the predicted priors, means and precisions """
-
-    def __init__(self, nb_components, target_dimension=1, **kwargs):
-        """ MixtureDensity output layer
-
-        Arguments:
-          -- nb_components: the number of components used to model the data
-          -- target_dimension: the dimensionality of the data
-          -- **kwargs: Any arguments to a "Dense" keras layer, apart from
-            "units" and "activation"
-        """
-
-        self.nb_components = nb_components
-        self.target_dimension = target_dimension
-
-        output_dim = self.nb_components * (1 + 2 * self.target_dimension)
-
-        # Ensure that we control these settings
-        kwargs.pop('activation', None)
-        kwargs.pop('units', None)
-
-        super(MixtureDensity, self).__init__(
-            units=output_dim,
-            **kwargs
-        )
-
-    def call(self, x):
-
-        # This first block is the regular Dense layer output
-        output = K.dot(x, self.kernel)
-        if self.use_bias:
-            output = K.bias_add(output, self.bias)
-
-        # Apply softmax to the component probabilities subvectors
-        cpn_probs = K.softmax(output[:, :self.nb_components])
-
-        # No activations for the component means subvectors
-        m_i0 = self.nb_components
-        m_i1 = m_i0 + self.nb_components * self.target_dimension
-        cpn_means = output[:, m_i0:m_i1]
-
-        # Take absolute value of the component precisions subvector to
-        # ensure that they are positive
-        p_i0 = m_i1
-        p_i1 = p_i0 + self.nb_components * self.target_dimension
-        cpn_precs = K.abs(output[:, p_i0:p_i1])
-
-        return K.concatenate([cpn_probs, cpn_means, cpn_precs], axis=1)
-
-    def get_config(self):
-
-        config = {
-            'nb_components' : self.nb_components,
-            'target_dimension' : self.target_dimension
-        }
-
-        base_config = super(MixtureDensity, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
 
 def mixture_density_loss(nb_components, target_dimension=1):
 
@@ -158,7 +95,15 @@ def gen_data(N):
 
 
 
+def mixture_density(nb_components, target_dimension=1):
 
+    def layer(X):
+        pi = keras.layers.Dense(2, activation='softmax')(X)
+        mu = keras.layers.Dense(2, activation='linear')(X)
+        prec = keras.layers.Dense(2, activation=K.abs)(X)
+        return keras.layers.Merge(mode='concat')([pi,mu,prec])
+
+    return layer
 
 def main():
 
@@ -168,10 +113,9 @@ def main():
 
     # The target distribution has 2 components, so a 2 component
     # mixture should model it very well
-    model = keras.models.Sequential()
-    model.add(keras.layers.Dense(input_dim=1, units=300))
-    model.add(keras.layers.Activation('relu'))
-    model.add(MixtureDensity(nb_components=2))
+    inputs = keras.layers.Input(shape=(1,))
+    h = keras.layers.Dense(300, activation='relu')(inputs)
+    model = keras.models.Model(input=[inputs], output=[mixture_density(2)(h)])
 
     # The gradients can get very large when the estimated precision
     # gets very large (small variance) which makes training
@@ -195,10 +139,10 @@ def main():
         verbose=2
     )
 
+    keras.activations.abs = K.abs
     model = keras.models.load_model(
         'mdn.h5',
         custom_objects={
-            'MixtureDensity': MixtureDensity,
             'loss': mixture_density_loss(nb_components=2)
         }
     )

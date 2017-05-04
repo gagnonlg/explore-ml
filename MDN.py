@@ -138,13 +138,19 @@ def main():
         x=trainX,
         y=trainY,
         batch_size=32,
-        epochs=100,
+        nb_epoch=100,
         validation_data=(validX, validY),
         callbacks=[
             keras.callbacks.ModelCheckpoint('mdn.h5', verbose=1, save_best_only=True)
         ],
         verbose=2
     )
+
+    if keras.__version__.split('.')[0] == '1':
+        saved = h5.File('mdn.h5', 'r+')
+        if 'optimizer_weights' in saved.keys():
+            del saved['optimizer_weights']
+        saved.close()
 
     keras.activations.abs = K.abs
     model = keras.models.load_model(

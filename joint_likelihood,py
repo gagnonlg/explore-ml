@@ -1,0 +1,115 @@
+import keras
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats
+import sklearn.metrics as metrics
+
+##################################
+
+means_S = [-0.5, -1, -1, -2]
+means_B = [0.5, 1, 1, 2]
+n_input = 2
+n_S = 10000
+n_B = n_S
+n_epoch = 10
+
+##################################
+
+def gen_data():
+    xs = np.random.normal(loc=means_S, size=(n_S, len(means_S)))
+    xb = np.random.normal(loc=means_B, size=(n_B, len(means_B)))
+    ys = np.ones(shape=(n_S,))
+    yb = np.zeros(shape=(n_B,))
+
+    x = np.concatenate((xs, xb), axis=0)
+    y = np.concatenate((ys, yb))
+    ishuffle = np.arange(x.shape[0])
+    np.random.shuffle(ishuffle)
+
+    return x[ishuffle], y[ishuffle]
+
+x, y = gen_data()
+
+###################################
+
+input_node = keras.layers.Input((2,))
+output_node = keras.layers.Dense(
+    1,
+    activation='sigmoid'
+)(keras.layers.Dense(100, activation='relu')(input_node))
+mlp = keras.models.Model(inputs=input_node, outputs=output_node)
+
+mlp.compile(optimizer='SGD', loss='binary_crossentropy')
+mlp.fit(x[:,:n_input], y, epochs=n_epoch, verbose=0)
+
+####################################
+
+xt, yt = gen_data()
+yp = mlp.predict(xt[:,:n_input])
+
+def calc_lr(xt, yt, yp, i_aux=None):
+    if i_aux is None:
+        s_aux = np.ones_like(yp)
+        b_aux = np.ones_like(yp)
+    else:
+        s_aux = scipy.stats.norm.pdf(xt[:,i_aux], loc=means_S[i_aux], scale=i_aux).reshape(yp.shape)
+        b_aux = scipy.stats.norm.pdf(xt[:,i_aux], loc=means_B[i_aux], scale=i_aux).reshape(yp.shape)
+
+    lr = yp * s_aux / ((1 - yp) * b_aux)
+    lr_fpr, lr_tpr, lr_thr = metrics.roc_curve(
+        yt,
+        lr
+    )
+
+    return lr_fpr, lr_tpr
+
+lr_fpr, lr_tpr = calc_lr(xt, yt, yp)
+lr1_fpr, lr1_tpr = calc_lr(xt, yt, yp, 1)
+lr2_fpr, lr2_tpr = calc_lr(xt, yt, yp, 2)
+lr3_fpr, lr3_tpr = calc_lr(xt, yt, yp, 3)
+
+plt.plot(lr_fpr, lr_tpr, label='lr')
+plt.plot(lr1_fpr, lr1_tpr, label='lr1')
+plt.plot(lr2_fpr, lr2_tpr, label='lr2')
+plt.plot(lr3_fpr, lr3_tpr, label='lr3')
+plt.legend(loc='best')
+plt.xlabel('fpr')
+plt.ylabel('tpr')
+plt.show()
+plt.close()
+
+########################################
+
+def calc_lr_emp(x, y, xt, yt, yp, i_aux=None):
+    if i_aux is None:
+        s_aux = np.ones_like(yp)
+        b_aux = np.ones_like(yp)
+    else:
+        hs = np.histogram(x[np.where(y == 1)][:, i_aux])
+        hb = np.histogram(x[np.where(y == 0)][:, i_aux])
+        ds = scipy.stats.rv_histogram(hs).pdf
+        db = scipy.stats.rv_histogram(hb).pdf
+        s_aux = ds(xt[:,i_aux]).reshape(yp.shape) + 1e-8
+        b_aux = db(xt[:,i_aux]).reshape(yp.shape) + 1e-8
+
+    lr = yp * s_aux / ((1 - yp) * b_aux)
+    lr_fpr, lr_tpr, lr_thr = metrics.roc_curve(
+        yt,
+        lr
+    )
+
+    return lr_fpr, lr_tpr
+
+lre_fpr, lre_tpr = calc_lr_emp(x, y, xt, yt, yp)
+lre1_fpr, lre1_tpr = calc_lr_emp(x, y, xt, yt, yp, 1)
+lre2_fpr, lre2_tpr = calc_lr_emp(x, y, xt, yt, yp, 2)
+lre3_fpr, lre3_tpr = calc_lr_emp(x, y, xt, yt, yp, 3)
+
+plt.plot(lre_fpr, lre_tpr, label='lre')
+plt.plot(lre1_fpr, lre1_tpr, label='lre1')
+plt.plot(lre2_fpr, lre2_tpr, label='lre2')
+plt.plot(lre3_fpr, lre3_tpr, label='lre3')
+plt.legend(loc='best')
+plt.xlabel('fpr')
+plt.ylabel('tpr')
+plt.show()

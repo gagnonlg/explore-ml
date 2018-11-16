@@ -23,10 +23,18 @@ class EarlyStop_FScore0(keras.callbacks.Callback):
 
         print tp, fp, p
 
+        weights = self.validation_data[2]
+        tp2 = np.sum(weights[np.where((y_pred==1)&(y_true == y_pred))])
+        fp2 = np.sum(weights[np.where((y_pred==1)&(1 - y_true == y_pred))])
+        p2 = np.sum(weights[np.where(y_true == 1)])
+        print tp2, fp2, p2
+
+
         precision = tp / (tp + fp)
         recall = tp / p
 
         fscore = 2 * precision * recall / (precision + recall)
+        print fscore
 
         if fscore > self.best:
             print 'fscore increased: %f -> %f' % (self.best, fscore)

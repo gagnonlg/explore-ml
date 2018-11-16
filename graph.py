@@ -9,14 +9,17 @@ x = x[isort]
 y = y[isort]
 
 keras = np.loadtxt('nn_keras_prediction.txt')
-theano = np.loadtxt('nn_theano_prediction.txt')
+tensorflow = np.loadtxt('nn_tensorflow_prediction.txt')
+
+print keras.shape
+print tensorflow.shape
 
 keras = keras[isort]
-theano = theano[isort]
+tensorflow = tensorflow[isort]
 
-plt.plot(x, keras, label='keras', color='black')
-plt.plot(x, theano, label='theano', color='green')
+#plt.plot(x, keras, label='keras', color='black')
+plt.plot(x, tensorflow, label='tensorflow', color='green')
 plt.plot(x, np.sin(x), 'k--', label='sin(x)')
 plt.legend(loc='best')
 plt.scatter(x,y, color='red')
-plt.show()
+plt.savefig('graph.png')

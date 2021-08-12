@@ -1,0 +1,2 @@
+from .gaussian_process import RandomFeatureGaussianProcess, mean_field_logits
+from .spectral_normalization import SpectralNormalization

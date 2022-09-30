@@ -25,7 +25,7 @@ grpcio==1.39.0
 h5py==3.1.0
 httplib2==0.19.1
 idna==3.2
-joblib==1.0.1
+joblib==1.2.0
 kaggle==1.5.12
 keras==2.6.0
 Keras-Preprocessing==1.1.2

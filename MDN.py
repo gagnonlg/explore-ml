@@ -16,8 +16,8 @@ def mixture_density(nb_components, target_dimension=1):
 
     def layer(X):
         pi = keras.layers.Dense(nb_components, activation='softmax')(X)
-        mu = keras.layers.Dense(nb_components, activation='linear')(X)
-        prec = keras.layers.Dense(nb_components, activation=K.abs)(X)
+        mu = keras.layers.Dense(nb_components * target_dimension, activation='linear')(X)
+        prec = keras.layers.Dense(nb_components * target_dimension, activation=K.abs)(X)
         return keras.layers.Concatenate()([pi,mu,prec])
 
     return layer

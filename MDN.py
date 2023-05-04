@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
-np.random.seed(12122)
-import keras
+import tensorflow as tf
+from tensorflow import keras
 import keras.backend as K
 
 
@@ -15,10 +15,10 @@ def mixture_density(nb_components, target_dimension=1):
     """
 
     def layer(X):
-        pi = keras.layers.Dense(2, activation='softmax')(X)
-        mu = keras.layers.Dense(2, activation='linear')(X)
-        prec = keras.layers.Dense(2, activation=K.abs)(X)
-        return keras.layers.Merge(mode='concat')([pi,mu,prec])
+        pi = keras.layers.Dense(nb_components, activation='softmax')(X)
+        mu = keras.layers.Dense(nb_components, activation='linear')(X)
+        prec = keras.layers.Dense(nb_components, activation=K.abs)(X)
+        return keras.layers.Concatenate()([pi,mu,prec])
 
     return layer
 
@@ -97,7 +97,7 @@ def gen_data(N):
         z = np.random.normal(scale=0.05, size=N)
         return x, y + z
 
-    n1 = N / 2#np.random.randint(N+1)
+    n1 = int(N / 2)#np.random.randint(N+1)
     n2 = N - n1
 
     x1, y1 = component_1(n1)
@@ -114,6 +114,8 @@ def gen_data(N):
 
 def main():
 
+    np.random.seed(12122)
+
     trainX, trainY = gen_data(10000)
     validX, validY = gen_data(1000)
     testX, testY = gen_data(1000)
@@ -122,7 +124,7 @@ def main():
     # mixture should model it very well
     inputs = keras.layers.Input(shape=(1,))
     h = keras.layers.Dense(300, activation='relu')(inputs)
-    model = keras.models.Model(input=[inputs], output=[mixture_density(2)(h)])
+    model = keras.models.Model(inputs=[inputs], outputs=[mixture_density(2)(h)])
 
     # The gradients can get very large when the estimated precision
     # gets very large (small variance) which makes training
@@ -138,7 +140,7 @@ def main():
         x=trainX,
         y=trainY,
         batch_size=32,
-        nb_epoch=100,
+        epochs=100,
         validation_data=(validX, validY),
         callbacks=[
             keras.callbacks.ModelCheckpoint('mdn.h5', verbose=1, save_best_only=True)
@@ -152,10 +154,10 @@ def main():
             del saved['optimizer_weights']
         saved.close()
 
-    keras.activations.abs = K.abs
     model = keras.models.load_model(
         'mdn.h5',
         custom_objects={
+            'abs': K.abs,
             'loss': mixture_density_loss(nb_components=2)
         }
     )
